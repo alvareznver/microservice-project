@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.0.0" camunda:diagramRelationId="7fa6be32-f29e-4fb3-8c03-c06e01ae3271">
+  <bpmn:process id="Process_PublicacionEditorial" name="Editorial Publication Process" isExecutable="true">
+    <bpmn:extensionElements>
+      <camunda:executionListener class="" event="start" />
+    </bpmn:extensionElements>
+    
+    <!-- Pools/Lanes para los participantes -->
+    <bpmn:collaboration id="Collaboration_PublicacionEditorial">
+      <bpmn:participant id="Participant_Author" name="Author" processRef="Process_PublicacionEditorial" />
+      <bpmn:participant id="Participant_Editor" name="Editor" />
+      <bpmn:participant id="Participant_Reviewer" name="Reviewer Committee" />
+    </bpmn:collaboration>
+
+    <!-- EVENTO DE INICIO -->
+    <bpmn:startEvent id="StartEvent_1" name="Create Draft">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- TAREA: Crear borrador -->
+    <bpmn:userTask id="Task_CreateDraft" name="Create Publication Draft" camunda:assignee="author">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- TAREA: Enviar a revisión -->
+    <bpmn:userTask id="Task_SubmitForReview" name="Submit for Review" camunda:assignee="author">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_3</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- TAREA: Revisión editorial -->
+    <bpmn:userTask id="Task_EditorialReview" name="Editorial Review" camunda:assignee="editor">
+      <bpmn:incoming>Flow_3</bpmn:incoming>
+      <bpmn:outgoing>Flow_4</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- TAREA: Revisión por comité -->
+    <bpmn:userTask id="Task_CommitteeReview" name="Committee Review" camunda:assignee="reviewer">
+      <bpmn:incoming>Flow_4</bpmn:incoming>
+      <bpmn:outgoing>Flow_5</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- GATEWAY EXCLUSIVO: Decisión de aprobación -->
+    <bpmn:exclusiveGateway id="Gateway_Approval" name="Decision">
+      <bpmn:incoming>Flow_5</bpmn:incoming>
+      <bpmn:outgoing>Flow_Approved</bpmn:outgoing>
+      <bpmn:outgoing>Flow_NeedsChanges</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Rejected</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Ruta: APROBADO -->
+    <bpmn:userTask id="Task_PreparePublication" name="Prepare for Publishing" camunda:assignee="editor">
+      <bpmn:incoming>Flow_Approved</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToPublish</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="Task_Publish" name="Publish Content" camunda:assignee="editor">
+      <bpmn:incoming>Flow_ToPublish</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToPublished</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- EVENTO FIN: PUBLICADO -->
+    <bpmn:endEvent id="EndEvent_Published" name="Published">
+      <bpmn:incoming>Flow_ToPublished</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Ruta: REQUIERE CAMBIOS -->
+    <bpmn:userTask id="Task_RequestChanges" name="Request Changes" camunda:assignee="editor">
+      <bpmn:incoming>Flow_NeedsChanges</bpmn:incoming>
+      <bpmn:outgoing>Flow_BackToAuthor</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="Task_MakeChanges" name="Make Required Changes" camunda:assignee="author">
+      <bpmn:incoming>Flow_BackToAuthor</bpmn:incoming>
+      <bpmn:outgoing>Flow_ResubmitReview</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Ruta: RECHAZADO -->
+    <bpmn:userTask id="Task_NotifyRejection" name="Notify Rejection" camunda:assignee="editor">
+      <bpmn:incoming>Flow_Rejected</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToRejected</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- EVENTO FIN: RECHAZADO -->
+    <bpmn:endEvent id="EndEvent_Rejected" name="Rejected">
+      <bpmn:incoming>Flow_ToRejected</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- FLUJOS DE SECUENCIA -->
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_1" targetRef="Task_CreateDraft" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_CreateDraft" targetRef="Task_SubmitForReview" />
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="Task_SubmitForReview" targetRef="Task_EditorialReview" />
+    <bpmn:sequenceFlow id="Flow_4" sourceRef="Task_EditorialReview" targetRef="Task_CommitteeReview" />
+    <bpmn:sequenceFlow id="Flow_5" sourceRef="Task_CommitteeReview" targetRef="Gateway_Approval" />
+
+    <!-- Flujos desde el gateway -->
+    <bpmn:sequenceFlow id="Flow_Approved" sourceRef="Gateway_Approval" targetRef="Task_PreparePublication" name="Approved">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">#{aprobado == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_NeedsChanges" sourceRef="Gateway_Approval" targetRef="Task_RequestChanges" name="Needs Changes">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">#{requiereCambios == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Rejected" sourceRef="Gateway_Approval" targetRef="Task_NotifyRejection" name="Rejected">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">#{rechazado == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <!-- Flujos de publicación -->
+    <bpmn:sequenceFlow id="Flow_ToPublish" sourceRef="Task_PreparePublication" targetRef="Task_Publish" />
+    <bpmn:sequenceFlow id="Flow_ToPublished" sourceRef="Task_Publish" targetRef="EndEvent_Published" />
+
+    <!-- Flujos de cambios -->
+    <bpmn:sequenceFlow id="Flow_BackToAuthor" sourceRef="Task_RequestChanges" targetRef="Task_MakeChanges" />
+    <bpmn:sequenceFlow id="Flow_ResubmitReview" sourceRef="Task_MakeChanges" targetRef="Task_EditorialReview" />
+
+    <!-- Flujos de rechazo -->
+    <bpmn:sequenceFlow id="Flow_ToRejected" sourceRef="Task_NotifyRejection" targetRef="EndEvent_Rejected" />
+  </bpmn:process>
+
+  <!-- Información del diagrama -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_PublicacionEditorial">
+      <bpmndi:BPMNShape id="BPMNShape_1" bpmnElement="Participant_Author" isHorizontal="true">
+        <dc:Bounds x="160" y="80" width="1100" height="250" />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

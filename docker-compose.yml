@@ -1,0 +1,131 @@
+version: '3.8'
+
+services:
+  # ==================== DATABASES ====================
+  
+  db-authors:
+    image: postgres:15-alpine
+    container_name: db-authors
+    environment:
+      POSTGRES_USER: ${DB_AUTHOR_USER:-author_user}
+      POSTGRES_PASSWORD: ${DB_AUTHOR_PASSWORD:-author_password}
+      POSTGRES_DB: ${DB_AUTHOR_NAME:-authors_db}
+    volumes:
+      - authors_db_data:/var/lib/postgresql/data
+    ports:
+      - "${DB_AUTHOR_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_AUTHOR_USER:-author_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - editorial-network
+
+  db-publications:
+    image: postgres:15-alpine
+    container_name: db-publications
+    environment:
+      POSTGRES_USER: ${DB_PUBLICATION_USER:-publication_user}
+      POSTGRES_PASSWORD: ${DB_PUBLICATION_PASSWORD:-publication_password}
+      POSTGRES_DB: ${DB_PUBLICATION_NAME:-publications_db}
+    volumes:
+      - publications_db_data:/var/lib/postgresql/data
+    ports:
+      - "${DB_PUBLICATION_PORT:-5433}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_PUBLICATION_USER:-publication_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - editorial-network
+
+  # ==================== MICROSERVICES ====================
+
+  authors-service:
+    build:
+      context: ./authors-service
+      dockerfile: Dockerfile
+    container_name: authors-service
+    ports:
+      - "${AUTHORS_SERVICE_PORT:-3001}:3001"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      DB_HOST: db-authors
+      DB_PORT: 5432
+      DB_USER: ${DB_AUTHOR_USER:-author_user}
+      DB_PASSWORD: ${DB_AUTHOR_PASSWORD:-author_password}
+      DB_NAME: ${DB_AUTHOR_NAME:-authors_db}
+      PORT: 3001
+    depends_on:
+      db-authors:
+        condition: service_healthy
+    networks:
+      - editorial-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  publications-service:
+    build:
+      context: ./publications-service
+      dockerfile: Dockerfile
+    container_name: publications-service
+    ports:
+      - "${PUBLICATIONS_SERVICE_PORT:-3002}:3002"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      DB_HOST: db-publications
+      DB_PORT: 5432
+      DB_USER: ${DB_PUBLICATION_USER:-publication_user}
+      DB_PASSWORD: ${DB_PUBLICATION_PASSWORD:-publication_password}
+      DB_NAME: ${DB_PUBLICATION_NAME:-publications_db}
+      AUTHORS_SERVICE_URL: http://authors-service:3001
+      HTTP_TIMEOUT: 5000
+      PORT: 3002
+    depends_on:
+      db-publications:
+        condition: service_healthy
+      authors-service:
+        condition: service_healthy
+    networks:
+      - editorial-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==================== FRONTEND ====================
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: editorial-frontend
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      VITE_AUTHORS_API: http://localhost:3001
+      VITE_PUBLICATIONS_API: http://localhost:3002
+    depends_on:
+      - authors-service
+      - publications-service
+    networks:
+      - editorial-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  authors_db_data:
+  publications_db_data:
+
+networks:
+  editorial-network:
+    driver: bridge
