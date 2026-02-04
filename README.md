@@ -797,8 +797,3 @@ docker-compose down -v
 docker-compose up -d
 ```
 
----
-
-**Versión**: 1.0.0  
-**Última actualización**: Febrero 2024  
-**Estado**: Producción Ready (con mejoras de seguridad recomendadas)
