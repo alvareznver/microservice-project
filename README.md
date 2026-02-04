@@ -797,28 +797,6 @@ docker-compose down -v
 docker-compose up -d
 ```
 
-## 📝 Notas Importantes
-
-1. **Dependencia de Servicios**: Publications Service SIEMPRE requiere que Authors Service esté disponible
-2. **Validación**: La validación de autor ocurre en tiempo de creación de publicación
-3. **Timeouts**: HTTP timeout configurado en 5000ms, reintentable con backoff exponencial
-4. **CORS**: Frontend configurado para acceder a ambos servicios
-
-## 🔐 Seguridad (Para Producción)
-
-- [ ] Implementar autenticación (JWT)
-- [ ] Implementar autorización por roles
-- [ ] Usar HTTPS/TLS
-- [ ] Validar y sanitizar inputs
-- [ ] Rate limiting en APIs
-- [ ] Logging y monitoring
-- [ ] Secretos en variables de entorno (secrets management)
-- [ ] API Gateway (Kong, Traefik)
-
-## 📞 Contacto y Soporte
-
-Para reportar problemas o sugerencias, crear un issue en el repositorio.
-
 ---
 
 **Versión**: 1.0.0  
